@@ -1,0 +1,74 @@
+<project name="testng-xslt" basedir="." default="RunVbScript_MailAlert">
+    <xmlproperty file="${xmlfile}" semanticAttributes="true"/>
+    <property environment="env"/>
+	<property name="username" value="${env.USERNAME}"/>
+    <property name="ProjectName" value="${env.Project_Name}"/>
+	<property name="buildNumber" value="${env.BUILD_NUMBER}"/>
+	<property name="jobName" value="${env.JOB_NAME}"/>
+	<property name="AutomationPath" value="${env.Automation_Path}"/>	
+	<property name="temp" value="${env.TEMP}"/>
+	<property name="src.dir" value="src" />
+	<property name="lib.dir" value="lib" />
+	<property name="test.dir" value="test" />
+	<property name="version" value="1.1.2" />	
+	
+	<path id="test.classpath">
+		<fileset dir="${lib.dir}" includes="*.jar" />
+	</path>
+	<target name="clean">	
+         <java classname="IPAddress" fork="yes"/>		
+		
+		<delete dir="${java.io.tmpdir}/output" />		
+	</target>
+
+	
+	<property file="${java.io.tmpdir}/IPDetail.properties"/>
+	<target name="makeXsltReports" depends="clean">
+		
+		<antcall target="test.runtimeTotals" />
+	</target>
+	<libfileset dir="${lib.dir}" includes="*.jar" />
+	<target name="test.runtimeTotals">
+		<mkdir dir="${java.io.tmpdir}/output" />
+
+		<xslt in="${java.io.tmpdir}/test-output/testng-results.xml" style="src/main/resources/testng-results.xsl"
+			out="${java.io.tmpdir}/output/index.html" classpathref="test.classpath"
+			processor="SaxonLiaison">
+			<param name="testNgXslt.outputDir" expression="${java.io.tmpdir}/output" />
+			<param name="testNgXslt.showRuntimeTotals" expression="true" />
+			<param name="fullReport" expression="http://${IPAddress}:8080/job/${jobName}/${buildNumber}/HTML_Report/"/>
+			<param name="AXReport" expression="http://${IPAddress}:8080/job/${jobName}/${buildNumber}/AX_Report/"/>
+		</xslt>
+	</target>
+	<path id="classpath">		
+		<fileset dir="${AutomationPath}Resources\imageconverter" includes="*.jar" />		
+		<pathelement path="${AutomationPath}Resources\imageconverter\imageconverter.jar"/>		
+	</path>
+	<target name="imageconverter" depends="makeXsltReports">
+	<java classname="SVGJPG" fork="yes" classpathref="classpath"/>
+	</target>
+	<target name="ZIP" depends="imageconverter">	
+	<copy todir="${java.io.tmpdir}/output">
+			<fileset dir="${AutomationPath}/Results" includes="*.png"/>
+	</copy>
+	<copy todir="${java.io.tmpdir}/output">
+	
+    			<fileset dir="${java.io.tmpdir}/CurrentRunReports" includes="*.html,*.png"/>
+				
+  			</copy>
+		<zip destfile="email.zip">
+			<fileset dir="${java.io.tmpdir}/output"/>
+			
+		</zip>
+		<delete dir="${java.io.tmpdir}/CurrentRunReports"/>
+	</target>	
+	<target name="RunVbScript_MailAlert" depends="ZIP">
+		<exec executable="cscript">
+			<arg value="${AutomationPath}/SauceExecutor/MailAlertWSO.vbs"/>	
+			<arg value="selenium"/>	
+			<arg value="${suite.parameter}"/>
+			<arg value="${suite.test.name}"/>
+			
+		</exec>
+	</target>
+</project>

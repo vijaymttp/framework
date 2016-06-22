@@ -1,0 +1,21 @@
+<project name="testng-xslt" basedir="."  default="RunVbScript_MailAlert">
+<property environment="env"/>
+	<property name="username" value="${env.USERNAME}"/>
+    <property name="ProjectName" value="${env.Project_Name}"/>
+	<property name="buildNumber" value="${env.BUILD_NUMBER}"/>
+	<property name="jobName" value="${env.JOB_NAME}"/>
+	<property name="AutomationPath" value="${env.Automation_Path}"/>	
+	<property name="temp" value="${env.TEMP}"/>
+	<property name="src.dir" value="src" />
+	<property name="lib.dir" value="lib" />
+	<property name="test.dir" value="test" />
+	<property name="version" value="1.1.2" />	
+<target name="RunVbScript_MailAlert">
+		<exec executable="cscript">
+			<arg value="${AutomationPath}/Results/Reports_VBs/GeneratePDFfromHTML.vbs"/>	
+			<arg value="${java.io.tmpdir}/output/index.html"/>	
+			<arg value="${AutomationPath}/Results/Reports_VBs/"/>
+			
+		</exec>
+	</target>
+</project>

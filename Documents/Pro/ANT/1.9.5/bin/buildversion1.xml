@@ -1,0 +1,134 @@
+<project name="testng-xslt" basedir="." default="RunVbScript_MailAlert">
+    <xmlproperty file="${xmlfile}" semanticAttributes="true"/>
+    <property environment="env"/>
+	<property name="username" value="${env.USERNAME}"/>
+    <property name="ProjectName" value="${env.Project_Name}"/>
+	<property name="buildNumber" value="${env.BUILD_NUMBER}"/>
+	<property name="jobName" value="${env.JOB_NAME}"/>
+	<property name="AutomationPath" value="${env.Automation_Path}"/>	
+	<property name="temp" value="${env.TEMP}"/>
+	<property name="src.dir" value="src" />
+	<property name="lib.dir" value="lib" />
+	<property name="test.dir" value="test" />
+	<property name="version" value="1.1.2" />	
+	
+	<path id="test.classpath">
+		<fileset dir="${lib.dir}" includes="*.jar" />
+	</path>
+	
+	<target name="clean">	
+         <java classname="IPAddress" fork="yes"/>		
+		<!--	<delete dir="${test.dir}/single/output" />
+		<delete dir="${test.dir}/custom-css/output" />
+		<delete dir="${test.dir}/split-suite/output" />
+		<delete dir="${test.dir}/split-suite-testcase/output" /> -->
+		<delete dir="${test.dir}/runtime-totals/output" />		
+	</target>
+	<target name="copy" depends="clean">
+	<copy file="${java.io.tmpdir}/test-output/testng-results.xml" todir="${AutomationPath}${ProjectName}/testng-xslt"/>
+	</target>
+	
+	<property file="${java.io.tmpdir}/IPDetail.properties"/>
+	<target name="makeXsltReports" depends="copy">
+		<!--	<antcall target="testcase">
+			<param name="dir" value="single" />
+		</antcall>
+
+	<antcall target="test.css" />
+
+		<antcall target="testcase">
+			<param name="dir" value="split-suite" />
+		</antcall>
+
+		<antcall target="testcase">
+			<param name="dir" value="split-suite-testcase" />
+		</antcall>-->
+
+		<antcall target="test.runtimeTotals" />
+	</target>
+
+	<libfileset dir="${lib.dir}" includes="*.jar" />
+
+	<target name="testcase">
+		<property name="dir" value="" />
+		<mkdir dir="${test.dir}/${dir}/output" />
+
+
+		<xslt in="${AutomationPath}${ProjectName}/testng-xslt/testng-results.xml" style="src/main/resources/testng-results.xsl"
+			out="${test.dir}/${dir}/output/index.html" classpathref="test.classpath"
+			processor="SaxonLiaison">
+			<param name="testNgXslt.outputDir" expression="${basedir}/${test.dir}/${dir}/output/" />
+		</xslt>
+
+	</target>
+
+	<target name="test.css">
+		<mkdir dir="${test.dir}/custom-css/output" />
+
+
+		<xslt in="${AutomationPath}${ProjectName}/testng-xslt/testng-results.xml" style="src/main/resources/testng-results.xsl"
+			out="${test.dir}/custom-css/output/index.html" classpathref="test.classpath"
+			processor="SaxonLiaison">
+			<param name="testNgXslt.outputDir" expression="${basedir}/${test.dir}/custom-css/output/" />
+			<param name="testNgXslt.cssFile" expression="../custom.css" />
+		</xslt>
+	</target>
+
+	<target name="test.runtimeTotals">
+		<mkdir dir="${test.dir}/runtime-totals/output" />
+
+		<xslt in="${AutomationPath}${ProjectName}/testng-xslt/testng-results.xml" style="src/main/resources/testng-results.xsl"
+			out="${test.dir}/runtime-totals/output/index.html" classpathref="test.classpath"
+			processor="SaxonLiaison">
+			<param name="testNgXslt.outputDir" expression="${basedir}/${test.dir}/runtime-totals/output/" />
+			<param name="testNgXslt.showRuntimeTotals" expression="true" />
+			<param name="fullReport" expression="http://${IPAddress}:8080/job/${jobName}/${buildNumber}/HTML_Report/"/>
+			<param name="AXReport" expression="http://${IPAddress}:8080/job/${jobName}/${buildNumber}/AX_Report/"/>
+		</xslt>
+	</target>
+
+	<target name="test.debug">
+		<delete dir="${test.dir}/debug/output" />
+		<mkdir dir="${test.dir}/debug/output" />
+
+		<xslt in="${AutomationPath}${ProjectName}/testng-xslt/testng-results.xml" style="src/main/resources/testng-results.xsl"
+			out="${test.dir}/debug/output/index.html" classpathref="test.classpath">
+			<param name="testNgXslt.outputDir" expression="${basedir}/${test.dir}/debug/output/" />
+			<param expression="true" name="testNgXslt.sortTestCaseLinks" />
+			<param expression="FAIL,SKIP,PASS,CONF,BY_CLASS" name="testNgXslt.testDetailsFilter" />
+			<param expression="true" name="testNgXslt.showRuntimeTotals" />
+		</xslt>
+	</target>	
+	
+	<path id="classpath">		
+		<fileset dir="${AutomationPath}Resources\imageconverter" includes="*.jar" />		
+		<pathelement path="${AutomationPath}Resources\imageconverter\imageconverter.jar"/>		
+	</path>
+	<target name="imageconverter" depends="makeXsltReports">
+	<java classname="SVGJPG" fork="yes" classpathref="classpath"/>
+	</target>
+	<target name="ZIP" depends="imageconverter">	
+	<copy todir="${java.io.tmpdir}/CurrentRunReports">
+			<fileset dir="${AutomationPath}/Results" includes="*.png"/>
+	</copy>
+	
+	<copy todir="${test.dir}/runtime-totals/output">
+	
+    			<fileset dir="${java.io.tmpdir}/CurrentRunReports" includes="*.html,*.png"/>
+				
+  			</copy>
+		<zip destfile="email.zip">
+			<fileset dir="${test.dir}/runtime-totals/output"/>
+			
+		</zip>
+		<delete dir="${temp}/CurrentRunReports"/>
+	</target>	
+	<target name="RunVbScript_MailAlert" depends="ZIP">
+		<exec executable="cscript">
+			<arg value="${AutomationPath}/SauceExecutor/MailAlert.vbs"/>	
+			<arg value="selenium"/>	
+			<arg value="${suite.parameter}"/>
+			<arg value="${suite.test.name}"/>
+		</exec>
+	</target>
+</project>

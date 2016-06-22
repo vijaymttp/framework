@@ -1,0 +1,85 @@
+<project name="testng-xslt" basedir=".">
+	<xmlproperty file="${xmlfile}" semanticAttributes="true"/>
+	<property environment="env"/>
+	<property name="username" value="${env.USERNAME}"/>
+	<property name="ProjectName" value="${env.Project_Name}"/>
+	<property name="buildNumber" value="${env.BUILD_NUMBER}"/>
+	<property name="jobName" value="${env.JOB_NAME}"/>
+	<property name="AutomationPath" value="${env.Automation_Path}"/>
+	<property name="temp" value="${env.TMPDIR}"/>
+	<property name="src.dir" value="src" />
+	<property name="lib.dir" value="lib" />
+	<property name="test.dir" value="test" />
+	<property name="version" value="1.1.2" />	
+
+	<echo message="Starting build"></echo>
+	<echo>${AutomationPath}</echo>
+	<echo>${temp}</echo>
+	<echo>${src.dir}</echo>
+	<echo>${lib.dir}</echo>
+	<echo>${test.dir}</echo>
+	<echo>${java.io.tmpdir}output</echo>
+	<echo>${AutomationPath}Results/Reports_VBs/</echo>
+	<echo>${IPAddress}:8080/job/${jobName}/${buildNumber}/HTML_Report/</echo>
+	<echo>${java.io.tmpdir}test-output/testng-results.xml</echo>
+	<echo>${java.io.tmpdir}output/index.html</echo>
+	<echo>${AutomationPath}Results</echo>
+	<echo>${AutomationPath}Results</echo>
+	<echo>${username}</echo>
+	
+	<path id="test.classpath">
+		<fileset dir="${lib.dir}" includes="*.jar" />
+	</path>
+	
+	<target name="clean">	
+		 <echo message="Start Clean"></echo>
+         <java classname="IPAddress" fork="yes"/>	
+         <java classname="UpdateTestNGResultXML" fork="yes"/>		 
+		 <java classname="AppendTestNgResult" fork="yes"/>	
+		 <delete dir="${java.io.tmpdir}output" />
+		 <echo message="Done Clean"></echo>
+	</target>
+	
+	<property file="${java.io.tmpdir}/IPDetail.properties"/>
+	<target name="makeXsltReports" depends="clean">
+		<antcall target="test.runtimeTotals" />
+	</target>
+	
+	<libfileset dir="${lib.dir}" includes="*.jar" />
+	
+	<target name="test.runtimeTotals">
+		<echo message="Creating Temp Dir"></echo>
+		<mkdir dir="${java.io.tmpdir}output" />
+		
+		<xslt in="${java.io.tmpdir}test-output/testng-results.xml" style="src/main/resources/testng-results.xsl"
+			out="${java.io.tmpdir}output/index.html" classpathref="test.classpath" processor="SaxonLiaison">
+			<param name="testNgXslt.outputDir" expression="${java.io.tmpdir}output" />
+			<param name="testNgXslt.showRuntimeTotals" expression="true" />
+			<param name="fullReport" expression="http://${IPAddress}:8080/job/${jobName}/${buildNumber}/HTML_Report/"/>
+			<param name="AXReport" expression="http://${IPAddress}:8080/job/${jobName}/${buildNumber}/AX_Report/"/>
+			<param name="userName" expression="${username}"/>
+		</xslt>
+	</target>
+	
+	<target name="ZIP" depends="makeXsltReports">	
+		<copy todir="${java.io.tmpdir}output">
+			<fileset dir="${AutomationPath}/Results" includes="*.png"/>
+		</copy>
+		<exec executable="cscript">
+			<arg value="${AutomationPath}Results/Reports_VBs/GeneratePDFfromHTML.vbs"/>	
+			<arg value="${java.io.tmpdir}output/index.html"/>	
+			<arg value="${AutomationPath}Results/Reports_VBs/"/>
+		</exec>
+		
+		<sleep seconds="7"/>
+		
+		<copy todir="${java.io.tmpdir}output">
+   			<fileset dir="${java.io.tmpdir}CurrentRunReports" includes="*.html,*.png"/>
+		</copy>
+				
+		<!--<zip destfile="email.zip">
+			<fileset dir="${java.io.tmpdir}/output"/>
+		</zip>
+		<delete dir="${java.io.tmpdir}/CurrentRunReports"/>-->
+	</target>
+</project>
